@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRACKER · THOMAS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Bebas+Neue&family=Oswald:wght@300;400;600;700&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #060608;
+  color: #f0ece8;
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: none;
+}
+a, button, select, input { cursor: none; }
+
+/* ===== CUSTOM CURSOR ===== */
+#cursor {
+  position: fixed; width: 10px; height: 10px;
+  border-radius: 50%; pointer-events: none; z-index: 9999;
+  transform: translate(-50%,-50%);
+  transition: background 0.3s, width 0.2s, height 0.2s;
+  background: #fff;
+  mix-blend-mode: difference;
+}
+#cursor-ring {
+  position: fixed; width: 34px; height: 34px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 50%; pointer-events: none; z-index: 9998;
+  transform: translate(-50%,-50%);
+  transition: width .25s, height .25s, border-color .3s;
+}
+
+/* ===== GLOBAL BG LAYERS ===== */
+#bg-layer {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  transition: background 0.8s ease;
+}
+.scanline {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+}
+#grid-layer {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  transition: opacity 0.6s;
+}
+
+/* ===== PAGE TRANSITION OVERLAY ===== */
+#transition-overlay {
+  position: fixed; inset: 0; z-index: 8000; pointer-events: none;
+  background: #000;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.4s cubic-bezier(0.77,0,0.18,1);
+}
+#transition-overlay.slide-in { clip-path: inset(0 0% 0 0); }
+#transition-overlay.slide-out { clip-path: inset(0 0 0 100%); }
+
+/* ===== PAGES ===== */
+.page { display: none; position: relative; z-index: 10; opacity: 0; transform: translateY(16px); transition: opacity 0.4s ease, transform 0.4s ease; min-height: 100vh; }
+.page.active { display: block; }
+.page.visible { opacity: 1; transform: translateY(0); }
+
+/* ===== NAV BAR ===== */
+#navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px;
+  height: 56px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  backdrop-filter: blur(12px);
+  background: rgba(6,6,8,0.7);
+  transition: border-color 0.5s;
+}
+.nav-logo {
+  font-family: 'Orbitron', sans-serif; font-size: 0.75rem; font-weight: 900;
+  letter-spacing: 0.3em; color: #fff; cursor: none;
+}
+.nav-logo span { opacity: 0.4; }
+.nav-links { display: flex; gap: 4px; }
+.nav-btn {
+  background: none; border: none; color: rgba(255,255,255,0.35);
+  font-family: 'Orbitron', sans-serif; font-size: 0.58rem; letter-spacing: 0.2em;
+  padding: 7px 14px; transition: color 0.2s, background 0.2s;
+  position: relative; overflow: hidden;
+}
+.nav-btn::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  transform: scaleX(0); transform-origin: left; transition: transform 0.3s;
+}
+.nav-btn:hover { color: #fff; }
+.nav-btn.active { color: #fff; }
+.nav-btn.active::after { transform: scaleX(1); }
+/* Per-game colors */
+.nav-btn[data-page="hub"]::after { background: #fff; }
+.nav-btn[data-page="apex"]::after { background: #ff6b35; }
+.nav-btn[data-page="valorant"]::after { background: #ff4655; }
+.nav-btn[data-page="darts"]::after { background: #00d4aa; }
+.nav-btn[data-page="apex"].active { color: #ff6b35; }
+.nav-btn[data-page="valorant"].active { color: #ff4655; }
+.nav-btn[data-page="darts"].active { color: #00d4aa; }
+
+/* ===== WRAP ===== */
+.wrap { max-width: 1060px; margin: 0 auto; padding: 80px 24px 60px; }
+
+/* ===== SECTION UTILITIES ===== */
+.section-title {
+  font-family: 'Orbitron', sans-serif; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.35em; text-transform: uppercase;
+  margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, currentColor, transparent); opacity: 0.3; }
+
+.stat-grid { display: grid; gap: 12px; margin-bottom: 28px; }
+.stat-card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+  padding: 18px; position: relative; overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  transition: border-color 0.25s, background 0.25s;
+}
+.stat-card:hover { background: rgba(255,255,255,0.05); }
+.stat-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; transform:scaleX(0); transform-origin:left; transition:transform .4s; }
+.stat-card:hover::after { transform:scaleX(1); }
+.stat-label { font-size: 0.6rem; letter-spacing: 0.3em; opacity: 0.45; text-transform: uppercase; margin-bottom: 6px; }
+.stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; line-height: 1; letter-spacing: 0.05em; }
+.stat-sub { font-size: 0.7rem; opacity: 0.4; margin-top: 3px; }
+
+.card {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+  padding: 22px; margin-bottom: 16px;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  transition: border-color 0.25s;
+}
+
+/* Forms */
+.form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 100px; }
+.form-group label { font-size: 0.6rem; letter-spacing: 0.2em; opacity: 0.45; font-weight: 700; }
+.form-group input, .form-group select {
+  background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+  color: #f0ece8; font-family: 'Rajdhani', sans-serif; font-size: 0.9rem;
+  padding: 8px 10px; outline: none; transition: border-color .2s; width: 100%;
+}
+.form-group input:focus, .form-group select:focus { border-color: currentColor; }
+.form-group select option { background: #0d0d10; }
+
+.btn {
+  background: currentColor; border: none; padding: 9px 20px;
+  font-family: 'Orbitron', sans-serif; font-size: 0.6rem; letter-spacing: 0.2em;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  transition: opacity .2s; white-space: nowrap; flex-shrink: 0;
+}
+.btn span { color: #060608; font-weight: 700; }
+.btn:hover { opacity: 0.8; }
+
+/* Tables */
+.table-wrap { border: 1px solid rgba(255,255,255,0.07); overflow: hidden; margin-bottom: 28px; }
+.sessions-table { width: 100%; border-collapse: collapse; }
+.sessions-table th { font-family: 'Orbitron', sans-serif; font-size: 0.55rem; letter-spacing: 0.25em; opacity: 0.4; text-align: left; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.sessions-table td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.04); transition: background .15s; }
+.sessions-table tr:hover td { background: rgba(255,255,255,0.02); }
+.sessions-table td.muted { opacity: 0.4; font-size: 0.75rem; }
+.del-btn { background: none; border: none; color: rgba(255,70,85,0.3); font-size: 0.85rem; transition: color .2s; }
+.del-btn:hover { color: #ff4655; }
+.empty-state { text-align: center; padding: 32px; opacity: 0.3; font-size: 0.8rem; letter-spacing: 0.15em; }
+
+/* Progress bars */
+.prog-track { height: 6px; background: rgba(255,255,255,0.06); overflow: hidden; margin-bottom: 4px; }
+.prog-fill { height: 100%; transition: width 0.8s cubic-bezier(0.22,1,0.36,1); transform-origin: left; }
+.prog-labels { display: flex; justify-content: space-between; font-size: 0.68rem; opacity: 0.5; }
+
+/* Badges */
+.badge { padding: 2px 7px; font-size: 0.6rem; font-family: 'Orbitron', sans-serif; letter-spacing: 0.1em; }
+.badge-win { background: rgba(0,212,100,0.12); color: #00d464; }
+.badge-loss { background: rgba(255,70,85,0.12); color: #ff4655; }
+.badge-top { background: rgba(255,170,0,0.12); color: #ffaa00; }
+
+/* Canvas charts */
+.chart-wrap { padding: 16px; margin-bottom: 28px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.01); }
+
+/* ===================== */
+/* ===== HUB PAGE ===== */
+/* ===================== */
+#page-hub { background: transparent; }
+.hub-hero {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  position: relative; z-index: 10; padding: 80px 24px 40px;
+}
+.hub-title {
+  font-family: 'Orbitron', sans-serif; font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 900; letter-spacing: 0.2em; line-height: 0.9;
+  color: #fff; margin-bottom: 16px;
+  animation: hubTitleIn 0.8s ease both;
+}
+.hub-title .line2 { display: block; font-size: 0.35em; letter-spacing: 0.6em; opacity: 0.25; margin-top: 12px; }
+@keyframes hubTitleIn { from{opacity:0;filter:blur(20px);transform:scale(1.05);}to{opacity:1;filter:blur(0);transform:scale(1);} }
+.hub-sub {
+  font-size: 0.8rem; letter-spacing: 0.5em; opacity: 0.25; margin-bottom: 64px;
+  animation: fadeUp 0.8s 0.3s both;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;} }
+
+.hub-cards { display: flex; gap: 20px; animation: fadeUp 0.8s 0.5s both; }
+.hub-card {
+  width: 240px; height: 300px; position: relative;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  overflow: hidden; transition: transform 0.4s cubic-bezier(0.22,1,0.36,1), border-color 0.3s;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  display: flex; flex-direction: column; justify-content: flex-end; padding: 22px;
+}
+.hub-card:hover { transform: translateY(-8px); }
+.hub-card::before { content:''; position:absolute; inset:0; opacity:0; transition:opacity .4s; }
+.hub-card:hover::before { opacity:1; }
+.hub-card-apex { border-color: rgba(232,65,42,0.25); }
+.hub-card-apex::before { background: radial-gradient(ellipse at 50% 120%, rgba(232,65,42,0.3), transparent 60%); }
+.hub-card-apex:hover { border-color: rgba(232,65,42,0.7); }
+.hub-card-valo { border-color: rgba(255,70,85,0.25); }
+.hub-card-valo::before { background: radial-gradient(ellipse at 50% 120%, rgba(255,70,85,0.3), transparent 60%); }
+.hub-card-valo:hover { border-color: rgba(255,70,85,0.7); }
+.hub-card-darts { border-color: rgba(0,212,170,0.25); }
+.hub-card-darts::before { background: radial-gradient(ellipse at 50% 120%, rgba(0,212,170,0.3), transparent 60%); }
+.hub-card-darts:hover { border-color: rgba(0,212,170,0.7); }
+
+.hub-card-bg-num {
+  position: absolute; top: 10px; left: 16px;
+  font-family: 'Bebas Neue', sans-serif; font-size: 7rem; line-height: 1;
+  opacity: 0.04; pointer-events: none; color: #fff;
+}
+.hub-card-label { font-size: 0.6rem; letter-spacing: 0.35em; opacity: 0.4; margin-bottom: 6px; }
+.hub-card-name { font-family: 'Orbitron', sans-serif; font-size: 1.1rem; font-weight: 900; letter-spacing: 0.05em; margin-bottom: 14px; line-height: 1.1; }
+.hub-card-apex .hub-card-name { color: #ff6b35; }
+.hub-card-valo .hub-card-name { color: #ff4655; }
+.hub-card-darts .hub-card-name { color: #00d4aa; }
+.hub-card-stats { font-size: 0.72rem; opacity: 0.5; margin-bottom: 14px; line-height: 1.7; }
+.hub-card-line { height: 1px; background: currentColor; opacity: 0.15; margin-bottom: 12px; transform: scaleX(0.3); transform-origin: left; transition: transform 0.4s; }
+.hub-card:hover .hub-card-line { transform: scaleX(1); }
+.hub-card-arrow { font-family: 'Orbitron', sans-serif; font-size: 0.6rem; letter-spacing: 0.2em; opacity: 0.4; transition: opacity 0.3s, letter-spacing 0.3s; }
+.hub-card:hover .hub-card-arrow { opacity: 0.9; letter-spacing: 0.35em; }
+.hub-card-bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; transform: scaleX(0); transform-origin: left; transition: transform 0.4s; }
+.hub-card-apex .hub-card-bottom-bar { background: linear-gradient(90deg, #e8412a, #ff6b35); }
+.hub-card-valo .hub-card-bottom-bar { background: linear-gradient(90deg, #ff4655, #ff8c9a); }
+.hub-card-darts .hub-card-bottom-bar { background: linear-gradient(90deg, #00d4aa, #00ffcc); }
+.hub-card:hover .hub-card-bottom-bar { transform: scaleX(1); }
+
+/* ========================= */
+/* ===== APEX VARIABLES ===== */
+/* ========================= */
+[data-theme="apex"] {
+  --accent: #ff6b35;
+  --accent2: #e8412a;
+  --accent3: #ffaa00;
+  --bg-glow: radial-gradient(ellipse 70% 50% at 15% 50%, rgba(232,65,42,0.12), transparent),
+             radial-gradient(ellipse 50% 40% at 85% 80%, rgba(255,107,53,0.07), transparent);
+  --grid-color: rgba(232,65,42,0.04);
+}
+
+/* ============================ */
+/* ===== VALORANT VARIABLES ===== */
+/* ============================ */
+[data-theme="valorant"] {
+  --accent: #ff4655;
+  --accent2: #ff6b77;
+  --accent3: #00b4d8;
+  --bg-glow: radial-gradient(ellipse 65% 55% at 90% 10%, rgba(255,70,85,0.13), transparent),
+             radial-gradient(ellipse 45% 50% at 5% 90%, rgba(0,180,216,0.07), transparent);
+  --grid-color: rgba(255,70,85,0.04);
+}
+
+/* ========================== */
+/* ===== DARTS VARIABLES ===== */
+/* ========================== */
+[data-theme="darts"] {
+  --accent: #00d4aa;
+  --accent2: #00ffcc;
+  --accent3: #9945ff;
+  --bg-glow: radial-gradient(ellipse 60% 55% at 10% 30%, rgba(0,212,170,0.12), transparent),
+             radial-gradient(ellipse 50% 60% at 90% 80%, rgba(153,69,255,0.08), transparent);
+  --grid-color: rgba(0,212,170,0.04);
+}
+
+/* Themed elements */
+[data-theme] .section-title { color: var(--accent); }
+[data-theme] .stat-value { color: var(--accent); }
+[data-theme] .stat-card::after { background: linear-gradient(90deg, var(--accent), transparent); }
+[data-theme] .stat-card:hover { border-color: rgba(255,255,255,0.12); }
+[data-theme] .prog-fill { background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+[data-theme] .form-group input, [data-theme] .form-group select { border-color: rgba(255,255,255,0.1); }
+[data-theme] .form-group input:focus, [data-theme] .form-group select:focus { border-color: var(--accent); }
+[data-theme] .btn { background: var(--accent); }
+[data-theme] .card { border-color: rgba(255,255,255,0.07); }
+[data-theme] .card:hover { border-color: var(--accent); }
+
+/* Page headers */
+.page-header {
+  padding-bottom: 28px; margin-bottom: 32px;
+  border-bottom: 1px solid rgba(255,255,255,0.07); position: relative;
+}
+.page-header::after {
+  content: ''; position: absolute; bottom: -1px; left: 0;
+  width: 80px; height: 2px; background: var(--accent, #fff);
+  transition: width 0.6s ease;
+}
+.page-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  letter-spacing: 0.12em; line-height: 1; color: #fff;
+  animation: pageIn 0.5s ease both;
+}
+.page-title span { color: var(--accent, #fff); }
+@keyframes pageIn { from{opacity:0;transform:skewX(-4deg) translateX(-20px);}to{opacity:1;transform:none;} }
+.page-sub { font-size: 0.68rem; letter-spacing: 0.5em; opacity: 0.3; margin-top: 6px; animation: fadeUp 0.6s 0.15s both; }
+
+/* ========================= */
+/* ===== APEX PAGE ===== */
+/* ========================= */
+.legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
+.legend-card {
+  display: flex; align-items: center; gap: 18px;
+  padding: 18px 20px; border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.02);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  transition: border-color 0.25s;
+}
+.legend-card:hover { border-color: var(--accent); }
+.legend-icon-box {
+  width: 52px; height: 52px; border: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; flex-shrink: 0; position: relative;
+  background: rgba(255,255,255,0.03);
+}
+.legend-icon-box.is-main { border-color: var(--accent); }
+.main-tag {
+  position: absolute; top: -7px; right: -7px;
+  background: var(--accent, #fff); color: #000;
+  font-size: 0.45rem; font-family: 'Orbitron', sans-serif;
+  padding: 2px 5px; letter-spacing: 0.1em;
+}
+.legend-name { font-family: 'Orbitron', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 3px; }
+.legend-role { font-size: 0.65rem; letter-spacing: 0.2em; opacity: 0.4; margin-bottom: 10px; }
+.legend-kills-info { display: flex; justify-content: space-between; font-size: 0.68rem; margin-top: 4px; opacity: 0.55; }
+.legend-kills-info strong { color: var(--accent); opacity: 1; }
+
+/* Milestone big bar */
+.milestone-card {
+  padding: 22px; border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.02); margin-bottom: 28px;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+}
+.milestone-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+.milestone-name { font-family: 'Orbitron', sans-serif; font-size: 0.9rem; font-weight: 700; }
+.milestone-pct { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; letter-spacing: 0.05em; color: var(--accent, #fff); line-height: 1; }
+.milestone-track { height: 10px; background: rgba(255,255,255,0.05); overflow: hidden; position: relative; margin-bottom: 8px; }
+.milestone-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent2, #fff), var(--accent, #fff), var(--accent3, #fff));
+  transition: width 1s cubic-bezier(0.22,1,0.36,1);
+  position: relative;
+}
+.milestone-fill::after { content:''; position:absolute; right:0; top:0; bottom:0; width:3px; background:#fff; opacity:0.7; animation:blinkBar 1s infinite; }
+@keyframes blinkBar { 0%,100%{opacity:.7}50%{opacity:.2} }
+
+/* ========================= */
+/* ===== VALORANT PAGE ===== */
+/* ========================= */
+.agents-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
+.agent-card {
+  padding: 18px 20px; border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.02);
+  transition: border-color 0.25s, background 0.25s;
+  position: relative; overflow: hidden;
+}
+.agent-card:hover { border-color: var(--accent); background: rgba(255,70,85,0.04); }
+.agent-number { font-family: 'Bebas Neue', sans-serif; font-size: 4rem; color: rgba(255,255,255,0.06); position: absolute; right: 16px; top: 8px; line-height: 1; }
+.agent-name { font-family: 'Oswald', sans-serif; font-size: 1.3rem; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 2px; }
+.agent-role { font-size: 0.65rem; letter-spacing: 0.2em; opacity: 0.4; margin-bottom: 10px; }
+.main-label { display: inline-block; background: var(--accent, #fff); color: #000; font-size: 0.5rem; font-family: 'Orbitron', sans-serif; padding: 2px 6px; letter-spacing: 0.1em; margin-bottom: 8px; }
+.agent-mini-stats { display: flex; gap: 16px; font-size: 0.7rem; opacity: 0.5; }
+.agent-mini-stats strong { color: #fff; opacity: 1; }
+
+/* RR rank track */
+.rank-track-wrap {
+  padding: 22px; border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.02); margin-bottom: 28px;
+}
+.rank-stages { display: flex; justify-content: space-between; margin-top: 12px; }
+.rank-stage { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.58rem; letter-spacing: 0.1em; opacity: 0.3; transition: opacity 0.3s; }
+.rank-stage.cur { opacity: 1; color: var(--accent, #fff); }
+.rank-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+.rank-stage.cur .rank-dot { background: var(--accent, #fff); box-shadow: 0 0 6px var(--accent, #fff); }
+
+/* ======================== */
+/* ===== DARTS PAGE ===== */
+/* ======================== */
+.live-game-wrap {
+  display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; margin-bottom: 28px;
+}
+.live-score-panel {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 28px; border: 1px solid rgba(0,212,170,0.2);
+  background: rgba(0,212,170,0.03);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+}
+.live-num {
+  font-family: 'Bebas Neue', sans-serif; font-size: 6rem;
+  line-height: 1; letter-spacing: 0.05em;
+  color: var(--accent, #00d4aa);
+  text-shadow: 0 0 40px rgba(0,212,170,0.5);
+  transition: color 0.3s, text-shadow 0.3s;
+}
+.live-num.bust { color: #ff4655; text-shadow: 0 0 40px rgba(255,70,85,0.5); }
+.live-num.done { color: #00ffcc; text-shadow: 0 0 60px rgba(0,255,204,0.8); animation: winPulse 0.4s ease; }
+@keyframes winPulse { 0%{transform:scale(1.2);}100%{transform:scale(1);} }
+.live-status { font-family: 'Orbitron', sans-serif; font-size: 0.6rem; letter-spacing: 0.3em; opacity: 0.4; margin-top: 8px; }
+.live-undo { background: none; border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); font-family: 'Orbitron', sans-serif; font-size: 0.55rem; letter-spacing: 0.15em; padding: 6px 12px; margin-top: 12px; transition: all .2s; }
+.live-undo:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
+
+.score-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.score-key {
+  background: rgba(0,212,170,0.06); border: 1px solid rgba(0,212,170,0.15);
+  color: var(--accent, #00d4aa); font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem; letter-spacing: 0.05em; padding: 12px 0;
+  transition: all .15s; text-align: center;
+}
+.score-key:hover { background: rgba(0,212,170,0.18); border-color: var(--accent, #00d4aa); }
+.score-key.action { border-color: rgba(255,70,85,0.2); color: #ff4655; background: rgba(255,70,85,0.05); font-size: 0.75rem; letter-spacing: 0.1em; }
+.score-key.action:hover { background: rgba(255,70,85,0.1); }
+.score-key.save-key { border-color: rgba(0,212,170,0.4); font-size: 0.75rem; letter-spacing: 0.1em; }
+.custom-row { grid-column: span 3; display: flex; gap: 8px; }
+.custom-row input { flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(0,212,170,0.2); color: #f0ece8; font-family: 'Rajdhani', sans-serif; font-size: 0.9rem; padding: 8px; outline: none; transition: border-color .2s; }
+.custom-row input:focus { border-color: var(--accent, #00d4aa); }
+.custom-row button { background: rgba(0,212,170,0.2); border: 1px solid rgba(0,212,170,0.4); color: var(--accent, #00d4aa); font-family: 'Orbitron', sans-serif; font-size: 0.6rem; padding: 8px 14px; letter-spacing: 0.1em; transition: background .2s; }
+.custom-row button:hover { background: rgba(0,212,170,0.3); }
+
+/* Training cards */
+.training-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+.training-card {
+  padding: 18px; border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.02); transition: border-color .25s;
+  position: relative; overflow: hidden;
+}
+.training-card:hover { border-color: var(--accent, #00d4aa); }
+.training-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--accent,#00d4aa); transform:scaleX(0); transform-origin:left; transition:transform .3s; }
+.training-card:hover::before { transform:scaleX(1); }
+.t-num { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; color: rgba(255,255,255,0.06); line-height: 1; margin-bottom: 4px; }
+.t-title { font-size: 0.88rem; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 4px; }
+.t-desc { font-size: 0.7rem; opacity: 0.45; line-height: 1.5; margin-bottom: 10px; }
+.t-duration { font-size: 0.6rem; letter-spacing: 0.2em; color: var(--accent, #00d4aa); font-weight: 700; }
+.t-check { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.7rem; opacity: 0.5; transition: opacity .2s; }
+.t-check:hover { opacity: 1; }
+.check-box { width: 14px; height: 14px; border: 1px solid rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; transition: all .2s; flex-shrink: 0; }
+.check-box.done { background: var(--accent, #00d4aa); border-color: var(--accent, #00d4aa); color: #000; font-weight: 900; }
+
+/* Dartboard decoration */
+.dartboard-svg { animation: rotateSlow 40s linear infinite; }
+@keyframes rotateSlow { to{transform:rotate(360deg);} }
+
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- GLOBAL BG -->
+<div id="bg-layer"></div>
+<div id="grid-layer"></div>
+<div class="scanline"></div>
+
+<!-- TRANSITION -->
+<div id="transition-overlay"></div>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <div class="nav-logo">THOMAS<span> · </span>TRACKER</div>
+  <div class="nav-links">
+    <button class="nav-btn active" data-page="hub" onclick="goTo('hub')">HUB</button>
+    <button class="nav-btn" data-page="apex" onclick="goTo('apex')">APEX</button>
+    <button class="nav-btn" data-page="valorant" onclick="goTo('valorant')">VALORANT</button>
+    <button class="nav-btn" data-page="darts" onclick="goTo('darts')">DARTS 301</button>
+  </div>
+</nav>
+
+<!-- ===================== -->
+<!-- PAGE: HUB             -->
+<!-- ===================== -->
+<div id="page-hub" class="page active">
+  <div class="hub-hero">
+    <div class="hub-title">
+      TRACKER
+      <span class="line2">THOMAS JOSSE · PERFORMANCE HUB</span>
+    </div>
+    <p class="hub-sub">APEX · VALORANT · FLÉCHETTES</p>
+    <div class="hub-cards">
+      <div class="hub-card hub-card-apex" onclick="goTo('apex')">
+        <div class="hub-card-bg-num">01</div>
+        <div class="hub-card-label">Battle Royale</div>
+        <div class="hub-card-name">APEX<br>LEGENDS</div>
+        <div class="hub-card-stats">Octane · 5 296 kills<br>Career · 7 923 kills · K/D 1.17</div>
+        <div class="hub-card-line" style="color:#ff6b35"></div>
+        <div class="hub-card-arrow" style="color:#ff6b35">ACCÉDER →</div>
+        <div class="hub-card-bottom-bar"></div>
+      </div>
+      <div class="hub-card hub-card-valo" onclick="goTo('valorant')">
+        <div class="hub-card-bg-num">02</div>
+        <div class="hub-card-label">Tactical FPS</div>
+        <div class="hub-card-name">VALO<br>RANT</div>
+        <div class="hub-card-stats">Rank · Bronze<br>Phoenix · Skye</div>
+        <div class="hub-card-line" style="color:#ff4655"></div>
+        <div class="hub-card-arrow" style="color:#ff4655">ACCÉDER →</div>
+        <div class="hub-card-bottom-bar"></div>
+      </div>
+      <div class="hub-card hub-card-darts" onclick="goTo('darts')">
+        <div class="hub-card-bg-num">03</div>
+        <div class="hub-card-label">Fléchettes</div>
+        <div class="hub-card-name">DARTS<br>301</div>
+        <div class="hub-card-stats">440+ parties<br>Programme structuré</div>
+        <div class="hub-card-line" style="color:#00d4aa"></div>
+        <div class="hub-card-arrow" style="color:#00d4aa">ACCÉDER →</div>
+        <div class="hub-card-bottom-bar"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== -->
+<!-- PAGE: APEX            -->
+<!-- ===================== -->
+<div id="page-apex" class="page" data-theme="apex">
+  <div class="wrap">
+    <div class="page-header">
+      <div class="page-title">APEX <span>LEGENDS</span></div>
+      <div class="page-sub">KILL TRACKER · LEGEND STATS</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card"><div class="stat-label">Career Kills</div><div class="stat-value" id="a-totalKills">7 923</div><div class="stat-sub">+ sessions enregistrées</div></div>
+      <div class="stat-card"><div class="stat-label">Career Games</div><div class="stat-value" id="a-sessions">5 900</div><div class="stat-sub">parties jouées</div></div>
+      <div class="stat-card"><div class="stat-label">K/D Career</div><div class="stat-value" id="a-avg">1.17</div><div class="stat-sub">kills / morts</div></div>
+      <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="a-wr">3.7<small style="font-size:.5em;opacity:.5">%</small></div><div class="stat-sub">221 wins career</div></div>
+    </div>
+
+    <!-- Milestone Octane -->
+    <div class="section-title">OBJECTIF OCTANE</div>
+    <div class="milestone-card">
+      <div class="milestone-header">
+        <div class="milestone-name">⚡ OCTANE — ROUTE VERS 10 000 KILLS</div>
+        <div class="milestone-pct" id="a-mpct">53%</div>
+      </div>
+      <div class="milestone-track">
+        <div class="milestone-fill" id="a-mbar" style="width:53%"></div>
+      </div>
+      <div class="prog-labels">
+        <span id="a-octane-cur">5 296 kills actuels</span>
+        <span>🏆 10 000</span>
+      </div>
+    </div>
+
+    <!-- Legends -->
+    <div class="section-title">LÉGENDES</div>
+    <div class="legend-grid">
+      <div class="legend-card">
+        <div class="legend-icon-box is-main">⚡<div class="main-tag">MAIN</div></div>
+        <div style="flex:1">
+          <div class="legend-name">OCTANE</div>
+          <div class="legend-role">SKIRMISHER · STIM JUNKIE · 3 795 PARTIES</div>
+          <div class="prog-track"><div class="prog-fill" id="a-oct-bar" style="width:53%"></div></div>
+          <div class="legend-kills-info"><span id="a-oct-k"><strong>5 296</strong> kills</span><span>objectif : 10 000</span></div>
+        </div>
+      </div>
+      <div class="legend-card">
+        <div class="legend-icon-box">⚡</div>
+        <div style="flex:1">
+          <div class="legend-name">CONDUIT</div>
+          <div class="legend-role">SUPPORT · SHIELD REGEN · 393 PARTIES</div>
+          <div class="prog-track"><div class="prog-fill" id="a-con-bar" style="width:69%"></div></div>
+          <div class="legend-kills-info"><span id="a-con-k"><strong>693</strong> kills</span><span>objectif : 1 000</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Season 28 -->
+    <div class="section-title">SAISON 28 · BREACH</div>
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:28px">
+      <div class="stat-card"><div class="stat-label">Kills S28</div><div class="stat-value" style="color:#ff6b35">869</div><div class="stat-sub">cette saison</div></div>
+      <div class="stat-card"><div class="stat-label">Parties S28</div><div class="stat-value" style="color:#ff6b35">449</div><div class="stat-sub">games jouées</div></div>
+      <div class="stat-card"><div class="stat-label">K/D S28</div><div class="stat-value" style="color:#ff6b35">0.96</div><div class="stat-sub">kills / morts</div></div>
+      <div class="stat-card"><div class="stat-label">Dégâts S28</div><div class="stat-value" style="color:#ff6b35">347k</div><div class="stat-sub">346 992 dégâts</div></div>
+    </div>
+
+    <!-- Career extra -->
+    <div class="section-title">STATS CAREER</div>
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:28px">
+      <div class="stat-card"><div class="stat-label">Dégâts Total</div><div class="stat-value">2.9M</div><div class="stat-sub">2 908 651 dégâts</div></div>
+      <div class="stat-card"><div class="stat-label">Headshots</div><div class="stat-value">9 890</div><div class="stat-sub">career headshots</div></div>
+      <div class="stat-card"><div class="stat-label">Knockdowns</div><div class="stat-value">10 359</div><div class="stat-sub">ennemis tombés</div></div>
+      <div class="stat-card"><div class="stat-label">Top 5s</div><div class="stat-value">1 090</div><div class="stat-sub">career top 5</div></div>
+    </div>
+
+    <!-- Add session -->
+    <div class="section-title">AJOUTER UNE SESSION</div>
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group"><label>DATE</label><input type="date" id="a-date"></div>
+        <div class="form-group"><label>LÉGENDE</label>
+          <select id="a-legend"><option value="Octane">Octane</option><option value="Conduit">Conduit</option><option value="Autre">Autre</option></select>
+        </div>
+        <div class="form-group"><label>KILLS</label><input type="number" id="a-kills" min="0" placeholder="0"></div>
+        <div class="form-group"><label>RÉSULTAT</label>
+          <select id="a-result"><option value="Win">Win 🏆</option><option value="Top3">Top 3</option><option value="Loss">Défaite</option></select>
+        </div>
+        <button class="btn" onclick="addApexSession()"><span>+ AJOUTER</span></button>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="section-title">KILLS PAR SESSION</div>
+    <div class="chart-wrap"><canvas id="a-chart" height="110"></canvas></div>
+
+    <!-- Table -->
+    <div class="section-title">HISTORIQUE</div>
+    <div class="table-wrap">
+      <table class="sessions-table">
+        <thead><tr><th>DATE</th><th>LÉGENDE</th><th>KILLS</th><th>RÉSULTAT</th><th></th></tr></thead>
+        <tbody id="a-tbody"><tr><td colspan="5" class="empty-state">Aucune session enregistrée</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== -->
+<!-- PAGE: VALORANT        -->
+<!-- ===================== -->
+<div id="page-valorant" class="page" data-theme="valorant">
+  <div class="wrap">
+    <div class="page-header">
+      <div class="page-title">VALO<span>RANT</span></div>
+      <div class="page-sub">RANK TRACKER · COMPETITIVE STATS</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid" style="grid-template-columns:repeat(5,1fr)">
+      <div class="stat-card"><div class="stat-label">Matches</div><div class="stat-value" id="v-sessions">162</div><div class="stat-sub">90h de jeu</div></div>
+      <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="v-wr">48.1<small style="font-size:.5em;opacity:.5">%</small></div><div class="stat-sub">78W · 84L</div></div>
+      <div class="stat-card"><div class="stat-label">K/D Ratio</div><div class="stat-value" id="v-avgk">0.88</div><div class="stat-sub">2 326 kills · 2 641 morts</div></div>
+      <div class="stat-card"><div class="stat-label">ACS</div><div class="stat-value" id="v-kd">209.8</div><div class="stat-sub">ADR 139.8</div></div>
+      <div class="stat-card"><div class="stat-label">HS%</div><div class="stat-value" id="v-rrnet" style="color:#ff4655">16.1<small style="font-size:.5em;opacity:.5">%</small></div><div class="stat-sub">KAST 65.5%</div></div>
+    </div>
+
+    <!-- Extra career stats -->
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:28px">
+      <div class="stat-card"><div class="stat-label">Kills Total</div><div class="stat-value">2 326</div><div class="stat-sub">887 assists</div></div>
+      <div class="stat-card"><div class="stat-label">Clutches 1v1</div><div class="stat-value">18</div><div class="stat-sub">clutches remportés</div></div>
+      <div class="stat-card"><div class="stat-label">Flawless Rounds</div><div class="stat-value">79</div><div class="stat-sub">rounds parfaits</div></div>
+      <div class="stat-card"><div class="stat-label">KAST</div><div class="stat-value">65.5<small style="font-size:.5em;opacity:.5">%</small></div><div class="stat-sub">KAD Ratio 1.22</div></div>
+    </div>
+
+    <!-- Rank track -->
+    <div class="section-title">PROGRESSION RR</div>
+    <div class="rank-track-wrap">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <span style="font-family:'Orbitron',sans-serif;font-size:0.72rem;letter-spacing:.2em;opacity:.45;white-space:nowrap">BRONZE I</span>
+        <div class="prog-track" style="flex:1;height:8px"><div class="prog-fill" id="v-rrbar" style="width:40%"></div></div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.05em;white-space:nowrap" id="v-rrdisplay">40 RR</div>
+      </div>
+      <div class="rank-stages" id="v-rank-stages">
+        <div class="rank-stage"><div class="rank-dot"></div>FER</div>
+        <div class="rank-stage cur"><div class="rank-dot"></div>BRONZE</div>
+        <div class="rank-stage"><div class="rank-dot"></div>ARGENT</div>
+        <div class="rank-stage"><div class="rank-dot"></div>OR</div>
+        <div class="rank-stage"><div class="rank-dot"></div>PLATINE</div>
+        <div class="rank-stage"><div class="rank-dot"></div>DIAMANT</div>
+        <div class="rank-stage"><div class="rank-dot"></div>ASCENDANT</div>
+        <div class="rank-stage"><div class="rank-dot"></div>IMMORTEL</div>
+        <div class="rank-stage"><div class="rank-dot"></div>RADIANT</div>
+      </div>
+    </div>
+
+    <!-- Agents -->
+    <div class="section-title">AGENTS</div>
+    <div class="agents-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="agent-card">
+        <div class="agent-number">01</div>
+        <div class="main-label">MAIN</div>
+        <div class="agent-name">PHOENIX</div>
+        <div class="agent-role">DUELIST · 32h · 56 MATCHES</div>
+        <div class="prog-track"><div class="prog-fill" style="width:100%"></div></div>
+        <div class="agent-mini-stats">
+          <span>WR · <strong>42.9%</strong></span>
+          <span>K/D · <strong>0.97</strong></span>
+          <span>ACS · <strong>239.9</strong></span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-number">02</div>
+        <div class="agent-name">OMEN</div>
+        <div class="agent-role">CONTROLLER · 23h · 42 MATCHES</div>
+        <div class="prog-track"><div class="prog-fill" style="width:75%"></div></div>
+        <div class="agent-mini-stats">
+          <span>WR · <strong>50.0%</strong></span>
+          <span>K/D · <strong>0.91</strong></span>
+          <span>ACS · <strong>210.7</strong></span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-number">03</div>
+        <div class="agent-name">SKYE</div>
+        <div class="agent-role">INITIATOR · 21h · 38 MATCHES</div>
+        <div class="prog-track"><div class="prog-fill" style="width:68%"></div></div>
+        <div class="agent-mini-stats">
+          <span>WR · <strong>52.6%</strong></span>
+          <span>K/D · <strong>0.80</strong></span>
+          <span>ACS · <strong>180.1</strong></span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-number">04</div>
+        <div class="agent-name">REYNA</div>
+        <div class="agent-role">DUELIST · 7h · 14 MATCHES</div>
+        <div class="prog-track"><div class="prog-fill" style="width:25%"></div></div>
+        <div class="agent-mini-stats">
+          <span>WR · <strong>57.1%</strong></span>
+          <span>K/D · <strong>0.74</strong></span>
+          <span>ACS · <strong>193.2</strong></span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-number">05</div>
+        <div class="agent-name">CYPHER</div>
+        <div class="agent-role">SENTINEL · 4.8h · 10 MATCHES</div>
+        <div class="prog-track"><div class="prog-fill" style="width:18%"></div></div>
+        <div class="agent-mini-stats">
+          <span>WR · <strong>40.0%</strong></span>
+          <span>K/D · <strong>0.69</strong></span>
+          <span>ACS · <strong>166.4</strong></span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-number">06</div>
+        <div class="agent-name">FADE</div>
+        <div class="agent-role">INITIATOR · 1.1h · 2 MATCHES</div>
+        <div class="prog-track"><div class="prog-fill" style="width:4%"></div></div>
+        <div class="agent-mini-stats">
+          <span>WR · <strong>50.0%</strong></span>
+          <span>K/D · <strong>0.94</strong></span>
+          <span>ACS · <strong>189.0</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAPS -->
+    <div class="section-title">STATS PAR MAP</div>
+    <div class="table-wrap" style="margin-bottom:28px">
+      <table class="sessions-table">
+        <thead><tr><th>MAP</th><th>WIN%</th><th>W</th><th>L</th><th>K/D</th><th>ACS</th><th>ADR</th><th>DDΔ</th></tr></thead>
+        <tbody>
+          <tr><td>Bind</td>  <td style="color:#00d464;font-family:'Bebas Neue',sans-serif;font-size:1rem">54.5%</td><td>12</td><td>10</td><td>0.87</td><td>221.0</td><td>145.9</td><td style="color:#ff4655">-16</td></tr>
+          <tr><td>Fracture</td><td style="color:#00d464;font-family:'Bebas Neue',sans-serif;font-size:1rem">52.9%</td><td>9</td><td>8</td><td>0.80</td><td>184.2</td><td>123.3</td><td style="color:#ff4655">-21</td></tr>
+          <tr><td>Breeze</td><td style="color:#00d464;font-family:'Bebas Neue',sans-serif;font-size:1rem">52.2%</td><td>12</td><td>11</td><td>0.83</td><td>192.8</td><td>126.7</td><td style="color:#ff4655">-23</td></tr>
+          <tr><td>Lotus</td><td style="color:#00d464;font-family:'Bebas Neue',sans-serif;font-size:1rem">50.0%</td><td>12</td><td>12</td><td>0.98</td><td>224.7</td><td>148.8</td><td style="color:#ff4655">-10</td></tr>
+          <tr><td style="color:#ffaa00">Pearl</td><td style="color:#ffaa00;font-family:'Bebas Neue',sans-serif;font-size:1rem">50.0%</td><td>13</td><td>13</td><td style="color:#ffaa00">1.01</td><td style="color:#ffaa00">229.9</td><td style="color:#ffaa00">151.1</td><td style="color:#ff4655">-6</td></tr>
+          <tr><td>Haven</td><td style="color:#ff4655;font-family:'Bebas Neue',sans-serif;font-size:1rem">42.9%</td><td>12</td><td>16</td><td>0.91</td><td>219.5</td><td>149.1</td><td style="color:#ff4655">-7</td></tr>
+          <tr><td>Split</td><td style="color:#ff4655;font-family:'Bebas Neue',sans-serif;font-size:1rem">40.0%</td><td>8</td><td>12</td><td>0.72</td><td>183.0</td><td>125.1</td><td style="color:#ff4655">-33</td></tr>
+          <tr><td style="opacity:.5">Abyss</td><td style="color:#ff4655;font-family:'Bebas Neue',sans-serif;font-size:1rem">0.0%</td><td>0</td><td>2</td><td>0.69</td><td>178.0</td><td>108.0</td><td style="color:#ff4655">-74</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- RÔLES + ACCURACY + LOADOUTS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px">
+      <div>
+        <div class="section-title">RÔLES</div>
+        <div class="card" style="padding:18px 20px">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:700">DUELIST</span><span style="font-size:.7rem;opacity:.45">32W·38L · KDA 1.23</span><span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#ff4655">45.7%</span></div><div class="prog-track"><div class="prog-fill" style="width:45.7%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:700">CONTROLLER</span><span style="font-size:.7rem;opacity:.45">21W·21L · KDA 1.22</span><span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#00d464">50.0%</span></div><div class="prog-track"><div class="prog-fill" style="width:50%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:700">INITIATOR</span><span style="font-size:.7rem;opacity:.45">21W·19L · KDA 1.22</span><span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#00d464">52.5%</span></div><div class="prog-track"><div class="prog-fill" style="width:52.5%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:700">SENTINEL</span><span style="font-size:.7rem;opacity:.45">4W·6L · KDA 1.05</span><span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#ff4655">40.0%</span></div><div class="prog-track"><div class="prog-fill" style="width:40%"></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">ACCURACY · 20 DERNIERS</div>
+        <div class="card" style="padding:16px 20px;margin-bottom:14px">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-size:.72rem;width:40px;opacity:.5">HEAD</span><div class="prog-track" style="flex:1"><div class="prog-fill" style="width:19.9%;background:linear-gradient(90deg,#ffaa00,#ff6b35)"></div></div><span style="font-family:'Bebas Neue',sans-serif;color:#ffaa00;width:46px;text-align:right">19.9%</span><span style="font-size:.68rem;opacity:.35;width:52px">216 hits</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-size:.72rem;width:40px;opacity:.5">BODY</span><div class="prog-track" style="flex:1"><div class="prog-fill" style="width:71.9%"></div></div><span style="font-family:'Bebas Neue',sans-serif;color:#ff4655;width:46px;text-align:right">71.9%</span><span style="font-size:.68rem;opacity:.35;width:52px">781 hits</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-size:.72rem;width:40px;opacity:.5">LEGS</span><div class="prog-track" style="flex:1"><div class="prog-fill" style="width:8.2%;background:rgba(255,255,255,0.15)"></div></div><span style="font-family:'Bebas Neue',sans-serif;opacity:.4;width:46px;text-align:right">8.2%</span><span style="font-size:.68rem;opacity:.35;width:52px">89 hits</span></div>
+          </div>
+        </div>
+        <div class="section-title">LOADOUTS</div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <table class="sessions-table" style="font-size:.82rem">
+            <thead><tr><th>LOADOUT</th><th>K/D</th><th>ACS</th><th>KAST</th></tr></thead>
+            <tbody>
+              <tr><td style="color:#ffaa00;font-weight:700">Full ≥3900$</td><td style="color:#ffaa00">1.06</td><td>242.5</td><td>70.3%</td></tr>
+              <tr><td>Eco 0-1000$</td><td>0.97</td><td>206.0</td><td>66.7%</td></tr>
+              <tr><td>Pistol Round</td><td>0.97</td><td>197.7</td><td>68.4%</td></tr>
+              <tr><td style="opacity:.55">Semi 1-3900$</td><td style="color:#ff4655">0.79</td><td>198.9</td><td>63.6%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- WEAPONS -->
+    <div class="section-title">ARMES</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px">
+      <div class="stat-card" style="clip-path:none;border-color:rgba(255,70,85,0.4)"><div style="font-size:.52rem;letter-spacing:.2em;opacity:.4;margin-bottom:3px">#1 · ASSAULT RIFLE</div><div style="font-family:'Orbitron',sans-serif;font-size:.95rem;font-weight:700;color:#ff4655;margin-bottom:7px">VANDAL</div><div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.72rem"><span>Kills <strong style="color:#fff">916</strong></span><span>HS% <strong style="color:#ffaa00">24.9%</strong></span><span>K/M <strong>5.7</strong></span><span>DMG <strong>933.6</strong></span></div></div>
+      <div class="stat-card" style="clip-path:none"><div style="font-size:.52rem;letter-spacing:.2em;opacity:.4;margin-bottom:3px">#2 · ASSAULT RIFLE</div><div style="font-family:'Orbitron',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:7px">PHANTOM</div><div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.72rem"><span>Kills <strong style="color:#fff">552</strong></span><span>HS% <strong style="color:#ffaa00">24.8%</strong></span><span>K/M <strong>3.5</strong></span><span>DMG <strong>581.6</strong></span></div></div>
+      <div class="stat-card" style="clip-path:none"><div style="font-size:.52rem;letter-spacing:.2em;opacity:.4;margin-bottom:3px">#3 · SMG</div><div style="font-family:'Orbitron',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:7px">SPECTRE</div><div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.72rem"><span>Kills <strong style="color:#fff">350</strong></span><span>HS% <strong>13.4%</strong></span><span>K/M <strong>2.3</strong></span><span>DMG <strong>293.7</strong></span></div></div>
+      <div class="stat-card" style="clip-path:none"><div style="font-size:.52rem;letter-spacing:.2em;opacity:.4;margin-bottom:3px">#4 · SIDEARM</div><div style="font-family:'Orbitron',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:7px">GHOST</div><div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.72rem"><span>Kills <strong style="color:#fff">310</strong></span><span>K/M <strong>1.9</strong></span><span>DMG <strong>239.2</strong></span></div></div>
+      <div class="stat-card" style="clip-path:none"><div style="font-size:.52rem;letter-spacing:.2em;opacity:.4;margin-bottom:3px">#5 · SIDEARM</div><div style="font-family:'Orbitron',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:7px">CLASSIC</div><div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.72rem"><span>Kills <strong style="color:#fff">60</strong></span><span>K/M <strong>0.5</strong></span><span>DMG <strong>53.2</strong></span></div></div>
+      <div class="stat-card" style="clip-path:none"><div style="font-size:.52rem;letter-spacing:.2em;opacity:.4;margin-bottom:3px">#6 · SIDEARM</div><div style="font-family:'Orbitron',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:7px">SHERIFF</div><div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.72rem"><span>Kills <strong style="color:#fff">55</strong></span><span>K/M <strong>0.5</strong></span><span>DMG <strong>84.7</strong></span></div></div>
+    </div>
+
+    <!-- Add session -->
+    <div class="section-title">AJOUTER UNE SESSION</div>
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group"><label>DATE</label><input type="date" id="v-date"></div>
+        <div class="form-group"><label>AGENT</label>
+          <select id="v-agent"><option value="Phoenix">Phoenix</option><option value="Skye">Skye</option><option value="Autre">Autre</option></select>
+        </div>
+        <div class="form-group"><label>KILLS</label><input type="number" id="v-kills" min="0" placeholder="0"></div>
+        <div class="form-group"><label>MORTS</label><input type="number" id="v-deaths" min="1" placeholder="1"></div>
+        <div class="form-group"><label>RR ±</label><input type="number" id="v-rr" placeholder="+15"></div>
+        <button class="btn" onclick="addValoSession()"><span>+ AJOUTER</span></button>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="section-title">ÉVOLUTION RR</div>
+    <div class="chart-wrap"><canvas id="v-chart" height="110"></canvas></div>
+
+    <!-- Table -->
+    <div class="section-title">HISTORIQUE</div>
+    <div class="table-wrap">
+      <table class="sessions-table">
+        <thead><tr><th>DATE</th><th>AGENT</th><th>MAP</th><th>KILLS</th><th>MORTS</th><th>K/D</th><th>RR</th><th>RÉSULTAT</th><th></th></tr></thead>
+        <tbody id="v-tbody"><tr><td colspan="7" class="empty-state">Aucune session enregistrée</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== -->
+<!-- PAGE: DARTS           -->
+<!-- ===================== -->
+<div id="page-darts" class="page" data-theme="darts">
+  <div class="wrap">
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="page-title">DARTS <span>301</span></div>
+        <div class="page-sub">PERFORMANCE TRACKER · FLÉCHETTES</div>
+      </div>
+      <svg class="dartboard-svg" viewBox="0 0 100 100" width="70" height="70">
+        <circle cx="50" cy="50" r="48" fill="rgba(0,0,0,0.5)" stroke="rgba(0,212,170,0.3)" stroke-width="1"/>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(0,212,170,0.15)" stroke-width="8"/>
+        <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(0,212,170,0.12)" stroke-width="6"/>
+        <circle cx="50" cy="50" r="18" fill="none" stroke="rgba(0,212,170,0.2)" stroke-width="4"/>
+        <circle cx="50" cy="50" r="9" fill="rgba(0,212,170,0.2)" stroke="rgba(0,212,170,0.5)" stroke-width="1"/>
+        <circle cx="50" cy="50" r="3.5" fill="#00d4aa"/>
+        <line x1="50" y1="2" x2="50" y2="98" stroke="rgba(0,212,170,0.08)" stroke-width="0.6"/>
+        <line x1="2" y1="50" x2="98" y2="50" stroke="rgba(0,212,170,0.08)" stroke-width="0.6"/>
+        <line x1="15" y1="15" x2="85" y2="85" stroke="rgba(0,212,170,0.06)" stroke-width="0.5"/>
+        <line x1="85" y1="15" x2="15" y2="85" stroke="rgba(0,212,170,0.06)" stroke-width="0.5"/>
+      </svg>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid" style="grid-template-columns:repeat(5,1fr)">
+      <div class="stat-card"><div class="stat-label">Manches</div><div class="stat-value" id="d-total">502</div><div class="stat-sub">490 comptées (12 solo)</div></div>
+      <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="d-wr">41.6<small style="font-size:.5em;opacity:.5">%</small></div><div class="stat-sub">204 / 490 gagnées</div></div>
+      <div class="stat-card"><div class="stat-label">PPR Moyen</div><div class="stat-value" id="d-avg">31.73</div><div class="stat-sub">meilleur : 69.46</div></div>
+      <div class="stat-card"><div class="stat-label">9-dart PPR</div><div class="stat-value" id="d-best">36.94</div><div class="stat-sub">meilleur : 82.67</div></div>
+      <div class="stat-card"><div class="stat-label">Checkout%</div><div class="stat-value" id="d-streak">11.32<small style="font-size:.5em;opacity:.5">%</small></div><div class="stat-sub">meilleur : 100%</div></div>
+    </div>
+
+    <!-- Stats X01 extra -->
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:28px">
+      <div class="stat-card"><div class="stat-label">60+</div><div class="stat-value">426</div><div class="stat-sub">0.85 par manche</div></div>
+      <div class="stat-card"><div class="stat-label">100+</div><div class="stat-value">32</div><div class="stat-sub">0.06 par manche</div></div>
+      <div class="stat-card"><div class="stat-label">Points pour finir</div><div class="stat-value">22.22</div><div class="stat-sub">meilleur finish : 96</div></div>
+      <div class="stat-card"><div class="stat-label">Around the Clock</div><div class="stat-value" style="color:var(--accent)">19.38<small style="font-size:.5em;opacity:.5">%</small></div><div class="stat-sub">taux réussite global</div></div>
+    </div>
+
+    <!-- Around the Clock -->
+    <div class="section-title">AROUND THE CLOCK · PRÉCISION PAR SECTEUR</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px">
+      <!-- Heatmap secteurs -->
+      <div class="card" style="padding:20px">
+        <div style="font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:.2em;opacity:.5;margin-bottom:14px">TAUX PAR SECTEUR (1000 RÉCENTS)</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+          <!-- Secteurs triés 1-20 + Bull -->
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">1</div><div style="opacity:.6">18.6%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">2</div><div style="opacity:.6">21.6%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.25);border:1px solid rgba(0,212,170,0.5);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent2)">3</div><div style="color:var(--accent2);font-weight:700">30.6%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">4</div><div style="opacity:.6">19.0%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.2);border:1px solid rgba(0,212,170,0.4);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent2)">5</div><div style="color:var(--accent2);font-weight:700">23.9%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">6</div><div style="opacity:.6">–</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">7</div><div style="opacity:.6">22.9%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">8</div><div style="opacity:.6">23.4%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">9</div><div style="opacity:.6">16.7%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.22);border:1px solid rgba(0,212,170,0.45);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent2)">10</div><div style="color:var(--accent2);font-weight:700">29.7%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">11</div><div style="opacity:.6">23.4%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">12</div><div style="opacity:.6">17.7%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">13</div><div style="opacity:.6">19.6%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#ff4655">14</div><div style="color:#ff4655;font-weight:700">12.1%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">15</div><div style="opacity:.6">23.4%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">16</div><div style="opacity:.6">22.9%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">17</div><div style="opacity:.6">21.6%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">18</div><div style="opacity:.6">19.3%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(255,70,85,0.1);border:1px solid rgba(255,70,85,0.2);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#ff6677">19</div><div style="color:#ff6677;font-weight:700">16.7%</div></div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);font-size:.75rem"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">20</div><div style="opacity:.6">17.2%</div></div>
+          <div style="text-align:center;padding:8px 4px;grid-column:span 4;background:rgba(255,70,85,0.12);border:1px solid rgba(255,70,85,0.25);font-size:.75rem;display:flex;align-items:center;justify-content:center;gap:16px"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#ff4655">BULL</div><div style="color:#ff4655;font-weight:700">11.1%</div><div style="opacity:.4;font-size:.65rem">— le plus faible —</div></div>
+        </div>
+      </div>
+
+      <!-- Meilleurs / pires + conseils -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card" style="padding:18px 20px">
+          <div style="font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:.2em;color:var(--accent);margin-bottom:12px">🏆 LES 3 MEILLEURS</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent2);width:32px;text-align:center">3</div>
+              <div class="prog-track" style="flex:1"><div class="prog-fill" style="width:100%"></div></div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--accent2)">30.56%</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent);width:32px;text-align:center">10</div>
+              <div class="prog-track" style="flex:1"><div class="prog-fill" style="width:97%"></div></div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--accent)">29.73%</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent);width:32px;text-align:center">5</div>
+              <div class="prog-track" style="flex:1"><div class="prog-fill" style="width:78%"></div></div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--accent)">23.91%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:18px 20px">
+          <div style="font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:.2em;color:#ff4655;margin-bottom:12px">⚠️ LES 3 PLUS FAIBLES</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#ff4655;width:36px;text-align:center">BULL</div>
+              <div class="prog-track" style="flex:1"><div class="prog-fill" style="width:36%;background:linear-gradient(90deg,#ff4655,#ff6677)"></div></div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#ff4655">11.11%</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#ff6677;width:36px;text-align:center">14</div>
+              <div class="prog-track" style="flex:1"><div class="prog-fill" style="width:40%;background:linear-gradient(90deg,#ff4655,#ff6677)"></div></div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#ff6677">12.09%</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#ff6677;width:36px;text-align:center">19</div>
+              <div class="prog-track" style="flex:1"><div class="prog-fill" style="width:55%;background:linear-gradient(90deg,#ff4655,#ff6677)"></div></div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#ff6677">16.67%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:16px 20px;border-color:rgba(255,170,0,0.2);background:rgba(255,170,0,0.03)">
+          <div style="font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:.2em;color:#ffaa00;margin-bottom:10px">💡 AXES DE PROGRESSION</div>
+          <div style="font-size:.78rem;line-height:1.7;opacity:.7">
+            → Travailler le <strong style="color:#fff">Bull</strong> en priorité (11.1%)<br>
+            → Renforcer le <strong style="color:#fff">14</strong> et le <strong style="color:#fff">19</strong> (zones faibles)<br>
+            → Checkout% 11.3% → objectif <strong style="color:#ffaa00">15%</strong><br>
+            → PPR moyen 31.7 → objectif <strong style="color:#ffaa00">40+</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live 301 -->
+    <div class="section-title">PARTIE EN COURS · 301</div>
+    <div class="live-game-wrap">
+      <div class="live-score-panel">
+        <div style="font-family:'Orbitron',sans-serif;font-size:.6rem;letter-spacing:.3em;opacity:.4;margin-bottom:8px">SCORE RESTANT</div>
+        <div class="live-num" id="d-live">301</div>
+        <div class="live-status" id="d-live-status">EN JEU</div>
+        <button class="live-undo" onclick="dUndo()">↩ UNDO</button>
+      </div>
+      <div>
+        <div class="score-pad">
+          <button class="score-key" onclick="dHit(26)">26</button>
+          <button class="score-key" onclick="dHit(41)">41</button>
+          <button class="score-key" onclick="dHit(60)">60</button>
+          <button class="score-key" onclick="dHit(45)">45</button>
+          <button class="score-key" onclick="dHit(81)">81</button>
+          <button class="score-key" onclick="dHit(100)">100</button>
+          <button class="score-key action" onclick="dReset()">↺ RESET</button>
+          <button class="score-key" onclick="dHit(140)">140</button>
+          <button class="score-key save-key" onclick="dSaveWin()">💾 WIN</button>
+          <div class="custom-row">
+            <input type="number" id="d-custom" placeholder="Score perso..." min="0" max="180">
+            <button onclick="dCustom()">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Training -->
+    <div class="section-title">PROGRAMME D'ENTRAÎNEMENT</div>
+    <div class="training-grid">
+      <div class="training-card">
+        <div class="t-num">01</div>
+        <div class="t-title">ÉCHAUFFEMENT</div>
+        <div class="t-desc">10 min de lancers libres. Trouver son rythme et sa posture.</div>
+        <div class="t-duration">⏱ 10 MIN</div>
+        <div class="t-check" onclick="toggleCheck(this)"><div class="check-box">✓</div><span>Fait aujourd'hui</span></div>
+      </div>
+      <div class="training-card">
+        <div class="t-num">02</div>
+        <div class="t-title">PRÉCISION BULL</div>
+        <div class="t-desc">30 lancers en visant le bull uniquement. Compter les hits.</div>
+        <div class="t-duration">⏱ 15 MIN</div>
+        <div class="t-check" onclick="toggleCheck(this)"><div class="check-box">✓</div><span>Fait aujourd'hui</span></div>
+      </div>
+      <div class="training-card">
+        <div class="t-num">03</div>
+        <div class="t-title">SECTEURS 20-19</div>
+        <div class="t-desc">10 lancers sur le 20, 10 sur le 19. Alterner. Focus triple.</div>
+        <div class="t-duration">⏱ 15 MIN</div>
+        <div class="t-check" onclick="toggleCheck(this)"><div class="check-box">✓</div><span>Fait aujourd'hui</span></div>
+      </div>
+      <div class="training-card">
+        <div class="t-num">04</div>
+        <div class="t-title">FINISHES 301</div>
+        <div class="t-desc">Exercice de finishes entre 40 et 170. Mémoriser les combos.</div>
+        <div class="t-duration">⏱ 20 MIN</div>
+        <div class="t-check" onclick="toggleCheck(this)"><div class="check-box">✓</div><span>Fait aujourd'hui</span></div>
+      </div>
+      <div class="training-card">
+        <div class="t-num">05</div>
+        <div class="t-title">AROUND THE CLOCK</div>
+        <div class="t-desc">Viser chaque secteur de 1 à 20 dans l'ordre. Chronométrer.</div>
+        <div class="t-duration">⏱ 20 MIN</div>
+        <div class="t-check" onclick="toggleCheck(this)"><div class="check-box">✓</div><span>Fait aujourd'hui</span></div>
+      </div>
+      <div class="training-card">
+        <div class="t-num">06</div>
+        <div class="t-title">PARTIE COMPLÈTE</div>
+        <div class="t-desc">2–3 parties de 301 en conditions réelles. Analyser chaque leg.</div>
+        <div class="t-duration">⏱ 30 MIN</div>
+        <div class="t-check" onclick="toggleCheck(this)"><div class="check-box">✓</div><span>Fait aujourd'hui</span></div>
+      </div>
+    </div>
+
+    <!-- Add session -->
+    <div class="section-title">ENREGISTRER UNE PARTIE</div>
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group"><label>DATE</label><input type="date" id="d-date"></div>
+        <div class="form-group"><label>RÉSULTAT</label>
+          <select id="d-result"><option value="Win">Victoire 🏆</option><option value="Loss">Défaite</option></select>
+        </div>
+        <div class="form-group"><label>SCORE DÉPART</label><input type="number" id="d-score" min="0" max="180" placeholder="ex: 85"></div>
+        <div class="form-group"><label>NB FLÉCHETTES</label><input type="number" id="d-darts" min="3" max="60" placeholder="ex: 18"></div>
+        <button class="btn" onclick="addDartsSession()"><span>ENREGISTRER</span></button>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="section-title">ÉVOLUTION SCORES</div>
+    <div class="chart-wrap"><canvas id="d-chart" height="110"></canvas></div>
+
+    <!-- Table -->
+    <div class="section-title">HISTORIQUE</div>
+    <div class="table-wrap">
+      <table class="sessions-table">
+        <thead><tr><th>DATE</th><th>SCORE DÉPART</th><th>FLÉCHETTES</th><th>RÉSULTAT</th><th></th></tr></thead>
+        <tbody id="d-tbody"><tr><td colspan="5" class="empty-state">Aucune partie enregistrée</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+/* ============================
+   NAVIGATION SPA
+   ============================ */
+const THEMES = {
+  hub:      { bg: 'radial-gradient(ellipse 80% 60% at 50% 100%, rgba(255,255,255,0.04), transparent)', grid: 'rgba(255,255,255,0.025)' },
+  apex:     { bg: 'radial-gradient(ellipse 70% 50% at 15% 50%, rgba(232,65,42,0.12), transparent), radial-gradient(ellipse 50% 40% at 85% 80%, rgba(255,107,53,0.07), transparent)', grid: 'rgba(232,65,42,0.04)' },
+  valorant: { bg: 'radial-gradient(ellipse 65% 55% at 90% 10%, rgba(255,70,85,0.13), transparent), radial-gradient(ellipse 45% 50% at 5% 90%, rgba(0,180,216,0.07), transparent)', grid: 'rgba(255,70,85,0.04)' },
+  darts:    { bg: 'radial-gradient(ellipse 60% 55% at 10% 30%, rgba(0,212,170,0.12), transparent), radial-gradient(ellipse 50% 60% at 90% 80%, rgba(153,69,255,0.08), transparent)', grid: 'rgba(0,212,170,0.04)' },
+};
+
+let currentPage = 'hub';
+const overlay = document.getElementById('transition-overlay');
+
+function goTo(name) {
+  if (name === currentPage) return;
+  overlay.classList.remove('slide-out');
+  overlay.classList.add('slide-in');
+
+  setTimeout(() => {
+    // Hide current
+    document.getElementById('page-' + currentPage).classList.remove('active','visible');
+    // Update nav
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === name));
+    // Show new
+    const page = document.getElementById('page-' + name);
+    page.classList.add('active');
+    setTimeout(() => page.classList.add('visible'), 20);
+    // BG
+    applyTheme(name);
+    currentPage = name;
+    window.scrollTo(0,0);
+    // Slide out overlay
+    overlay.classList.remove('slide-in');
+    overlay.classList.add('slide-out');
+    setTimeout(() => overlay.classList.remove('slide-out'), 500);
+    // Render
+    if (name === 'apex') renderApex();
+    if (name === 'valorant') { initValoHistory(); renderValo(); }
+    if (name === 'darts') renderDarts();
+  }, 380);
+}
+
+function applyTheme(name) {
+  const t = THEMES[name];
+  document.getElementById('bg-layer').style.background = t.bg;
+  document.getElementById('grid-layer').style.cssText = `background-image:linear-gradient(${t.grid} 1px,transparent 1px),linear-gradient(90deg,${t.grid} 1px,transparent 1px);background-size:50px 50px;`;
+}
+
+// Init
+applyTheme('hub');
+setTimeout(() => document.getElementById('page-hub').classList.add('visible'), 50);
+
+/* ============================
+   CURSOR
+   ============================ */
+const cur = document.getElementById('cursor'), ring = document.getElementById('cursor-ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; cur.style.left=mx+'px'; cur.style.top=my+'px'; });
+(function animRing(){ rx+=(mx-rx)*.12; ry+=(my-ry)*.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(animRing); })();
+document.querySelectorAll('button,a,.hub-card').forEach(el => {
+  el.addEventListener('mouseenter', () => { ring.style.width='52px'; ring.style.height='52px'; });
+  el.addEventListener('mouseleave', () => { ring.style.width='34px'; ring.style.height='34px'; });
+});
+
+/* ============================
+   LOCAL STORAGE HELPERS
+   ============================ */
+const LS = {
+  get: k => { try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;} },
+  set: (k,v) => localStorage.setItem(k,JSON.stringify(v)),
+};
+
+/* ============================
+   CHART HELPER
+   ============================ */
+function drawBarChart(canvas, values, labels, color, chartColor) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  const W = canvas.width, H = canvas.height, pad = 32;
+  ctx.clearRect(0,0,W,H);
+  if (!values.length) {
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.font = '13px Rajdhani'; ctx.textAlign = 'center';
+    ctx.fillText('Ajoutez des sessions pour voir le graphique', W/2, H/2); return;
+  }
+  const max = Math.max(...values, 1);
+  const bW = Math.min(36, (W-pad*2)/values.length - 6);
+  // gridlines
+  for(let i=0;i<=4;i++){
+    const y=pad+(H-pad*2)/4*i;
+    ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();
+  }
+  values.forEach((v,i) => {
+    const x = pad+(W-pad*2)/values.length*i+(W-pad*2)/values.length/2-bW/2;
+    const bH = (v/max)*(H-pad*2);
+    const y = H-pad-bH;
+    const grad = ctx.createLinearGradient(0,y,0,H-pad);
+    grad.addColorStop(0, chartColor+'cc'); grad.addColorStop(1, chartColor+'33');
+    ctx.fillStyle = grad; ctx.fillRect(x,y,bW,bH);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '10px Rajdhani'; ctx.textAlign = 'center';
+    ctx.fillText(v, x+bW/2, y-4);
+    if(labels[i]){ ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='9px Rajdhani'; ctx.fillText(labels[i],x+bW/2,H-10); }
+  });
+}
+
+function drawLineChart(canvas, points, colors, chartColor) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  const W = canvas.width, H = canvas.height, pad = 34;
+  ctx.clearRect(0,0,W,H);
+  if (points.length < 2) {
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='13px Rajdhani';ctx.textAlign='center';
+    ctx.fillText('Ajoutez des sessions pour voir l\'évolution',W/2,H/2);return;
+  }
+  const minP=Math.min(...points), maxP=Math.max(...points,minP+1);
+  const toY=v=>pad+(H-pad*2)*(1-(v-minP)/(maxP-minP));
+  const toX=i=>pad+(W-pad*2)/(points.length-1)*i;
+  // Grid
+  for(let i=0;i<=3;i++){
+    const y=pad+(H-pad*2)/3*i;
+    ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();
+  }
+  // Area
+  ctx.beginPath();ctx.moveTo(toX(0),H-pad);
+  points.forEach((_,i)=>ctx.lineTo(toX(i),toY(points[i])));
+  ctx.lineTo(toX(points.length-1),H-pad);ctx.closePath();
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,chartColor+'44');grad.addColorStop(1,chartColor+'00');
+  ctx.fillStyle=grad;ctx.fill();
+  // Line
+  ctx.beginPath();
+  points.forEach((p,i)=>{if(i===0)ctx.moveTo(toX(i),toY(p));else ctx.lineTo(toX(i),toY(p));});
+  ctx.strokeStyle=chartColor;ctx.lineWidth=2;ctx.stroke();
+  // Dots
+  points.forEach((p,i)=>{
+    ctx.beginPath();ctx.arc(toX(i),toY(p),3.5,0,Math.PI*2);
+    ctx.fillStyle=(colors&&colors[i])?colors[i]:chartColor;ctx.fill();
+  });
+}
+
+/* ============================
+   APEX
+   ============================ */
+function getApex(){ return LS.get('apex_s') || []; }
+function saveApex(s){ LS.set('apex_s',s); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('a-date').valueAsDate = new Date();
+  document.getElementById('v-date').valueAsDate = new Date();
+  document.getElementById('d-date').valueAsDate = new Date();
+});
+
+function addApexSession() {
+  const d=document.getElementById('a-date').value;
+  const l=document.getElementById('a-legend').value;
+  const k=parseInt(document.getElementById('a-kills').value)||0;
+  const r=document.getElementById('a-result').value;
+  if(!d){alert('Ajoute une date !');return;}
+  const s=getApex(); s.unshift({id:Date.now(),date:d,legend:l,kills:k,result:r});
+  saveApex(s); document.getElementById('a-kills').value=''; renderApex();
+}
+function deleteApex(id){ saveApex(getApex().filter(s=>s.id!==id)); renderApex(); }
+
+function renderApex() {
+  const s=getApex();
+  const CAREER_KILLS = 7923, CAREER_GAMES = 5900, CAREER_WINS = 221;
+  const sessionKills = s.reduce((a,x)=>a+x.kills,0);
+  const sessionWins  = s.filter(x=>x.result==='Win').length;
+  const totalKills   = CAREER_KILLS + sessionKills;
+  const totalGames   = CAREER_GAMES + s.length;
+  const totalWins    = CAREER_WINS  + sessionWins;
+  const winRate      = (totalWins / totalGames * 100).toFixed(1);
+  document.getElementById('a-totalKills').textContent = totalKills.toLocaleString('fr');
+  document.getElementById('a-sessions').textContent   = totalGames.toLocaleString('fr');
+  document.getElementById('a-avg').textContent        = '1.17';
+  document.getElementById('a-wr').innerHTML           = winRate + '<small style="font-size:.5em;opacity:.5">%</small>';
+  // Milestone
+  const octBase=parseInt(LS.get('apex_oct_base')||5296);
+  const conBase=parseInt(LS.get('apex_con_base')||693);
+  const octK=octBase+s.filter(x=>x.legend==='Octane').reduce((a,x)=>a+x.kills,0);
+  const conK=conBase+s.filter(x=>x.legend==='Conduit').reduce((a,x)=>a+x.kills,0);
+  const pct=Math.min(100,Math.round(octK/10000*100));
+  document.getElementById('a-mpct').textContent=pct+'%';
+  document.getElementById('a-mbar').style.width=pct+'%';
+  document.getElementById('a-octane-cur').textContent=octK.toLocaleString('fr')+' kills actuels';
+  document.getElementById('a-oct-k').innerHTML='<strong>'+octK.toLocaleString('fr')+'</strong> kills';
+  document.getElementById('a-oct-bar').style.width=Math.min(100,Math.round(octK/10000*100))+'%';
+  document.getElementById('a-con-k').innerHTML='<strong>'+conK.toLocaleString('fr')+'</strong> kills';
+  document.getElementById('a-con-bar').style.width=Math.min(100,Math.round(conK/1000*100))+'%';
+  // Season 28 card update (static display)
+  
+  // Table
+  const tb=document.getElementById('a-tbody');
+  tb.innerHTML=s.length?s.map(x=>`<tr>
+    <td class="muted">${x.date}</td>
+    <td>${x.legend}</td>
+    <td style="font-family:'Bebas Neue',sans-serif;font-size:1.15rem;color:#ff6b35">${x.kills}</td>
+    <td><span class="badge ${x.result==='Win'?'badge-win':x.result==='Top3'?'badge-top':'badge-loss'}">${x.result}</span></td>
+    <td><button class="del-btn" onclick="deleteApex(${x.id})">✕</button></td>
+  </tr>`).join(''):'<tr><td colspan="5" class="empty-state">Aucune session enregistrée</td></tr>';
+  // Chart
+  const data=[...s].reverse().slice(-14);
+  drawBarChart(document.getElementById('a-chart'), data.map(x=>x.kills), data.map(x=>x.date.slice(5)), '#ff6b35', '#ff6b35');
+}
+
+/* ============================
+   VALORANT
+   ============================ */
+function getValo(){ return LS.get('valo_s') || []; }
+function saveValo(s){ LS.set('valo_s',s); }
+
+// Historique complet pré-chargé (du plus récent au plus ancien)
+const VALO_HISTORY_BASE = [
+  // Apr 13
+  {id:20260413001,date:'2026-04-13',agent:'Phoenix',   kills:27,deaths:23,rr:15,result:'Win',  map:'Pearl',   acs:262},
+  {id:20260413002,date:'2026-04-13',agent:'Phoenix',   kills:9, deaths:18,rr:-13,result:'Loss',map:'Fracture',acs:147},
+  {id:20260413003,date:'2026-04-13',agent:'Skye',      kills:21,deaths:14,rr:18,result:'Win',  map:'Lotus',   acs:226},
+  {id:20260413004,date:'2026-04-13',agent:'Skye',      kills:11,deaths:17,rr:-12,result:'Loss',map:'Lotus',   acs:169},
+  // Apr 10
+  {id:20260410001,date:'2026-04-10',agent:'Phoenix',   kills:10,deaths:15,rr:-13,result:'Loss',map:'Split',   acs:188},
+  {id:20260410002,date:'2026-04-10',agent:'Omen',      kills:15,deaths:17,rr:-10,result:'Loss',map:'Fracture',acs:204},
+  {id:20260410003,date:'2026-04-10',agent:'Phoenix',   kills:18,deaths:17,rr:12,result:'Win',  map:'Bind',    acs:291},
+  {id:20260410004,date:'2026-04-10',agent:'Skye',      kills:32,deaths:14,rr:20,result:'Win',  map:'Bind',    acs:446},
+  {id:20260410005,date:'2026-04-10',agent:'Omen',      kills:13,deaths:14,rr:10,result:'Win',  map:'Fracture',acs:177},
+  {id:20260410006,date:'2026-04-10',agent:'Skye',      kills:12,deaths:16,rr:-12,result:'Loss',map:'Breeze',  acs:180},
+  {id:20260410007,date:'2026-04-10',agent:'Skye',      kills:8, deaths:18,rr:-15,result:'Loss',map:'Pearl',   acs:126},
+  {id:20260410008,date:'2026-04-10',agent:'Phoenix',   kills:24,deaths:17,rr:15,result:'Win',  map:'Haven',   acs:311},
+  {id:20260410009,date:'2026-04-10',agent:'Skye',      kills:26,deaths:14,rr:18,result:'Win',  map:'Fracture',acs:280},
+  // Apr 9
+  {id:20260409001,date:'2026-04-09',agent:'Phoenix',   kills:17,deaths:17,rr:-12,result:'Loss',map:'Pearl',   acs:264},
+  {id:20260409002,date:'2026-04-09',agent:'Skye',      kills:11,deaths:15,rr:-10,result:'Loss',map:'Breeze',  acs:158},
+  {id:20260409003,date:'2026-04-09',agent:'Skye',      kills:16,deaths:20,rr:-13,result:'Loss',map:'Haven',   acs:176},
+  {id:20260409004,date:'2026-04-09',agent:'Phoenix',   kills:3, deaths:2, rr:15,result:'Win',  map:'Fracture',acs:114},
+  {id:20260409005,date:'2026-04-09',agent:'Phoenix',   kills:25,deaths:15,rr:18,result:'Win',  map:'Haven',   acs:317},
+  // Apr 8
+  {id:20260408001,date:'2026-04-08',agent:'Skye',      kills:10,deaths:16,rr:-12,result:'Loss',map:'Fracture',acs:174},
+  {id:20260408002,date:'2026-04-08',agent:'Skye',      kills:5, deaths:15,rr:-15,result:'Loss',map:'Bind',    acs:105},
+  {id:20260408003,date:'2026-04-08',agent:'Omen',      kills:22,deaths:24,rr:12,result:'Win',  map:'Pearl',   acs:255},
+  // Apr 7
+  {id:20260407001,date:'2026-04-07',agent:'Skye',      kills:17,deaths:16,rr:12,result:'Win',  map:'Pearl',   acs:200},
+  {id:20260407002,date:'2026-04-07',agent:'Omen',      kills:16,deaths:19,rr:-12,result:'Loss',map:'Lotus',   acs:225},
+  {id:20260407003,date:'2026-04-07',agent:'Phoenix',   kills:17,deaths:18,rr:10,result:'Win',  map:'Breeze',  acs:232},
+  // Apr 6
+  {id:20260406001,date:'2026-04-06',agent:'Phoenix',   kills:19,deaths:24,rr:12,result:'Win',  map:'Bind',    acs:216},
+  {id:20260406002,date:'2026-04-06',agent:'Omen',      kills:18,deaths:22,rr:-12,result:'Loss',map:'Fracture',acs:220},
+  {id:20260406003,date:'2026-04-06',agent:'Phoenix',   kills:8, deaths:20,rr:-15,result:'Loss',map:'Fracture',acs:131},
+  {id:20260406004,date:'2026-04-06',agent:'Skye',      kills:11,deaths:14,rr:-12,result:'Loss',map:'Haven',   acs:223},
+  {id:20260406005,date:'2026-04-06',agent:'Phoenix',   kills:14,deaths:12,rr:15,result:'Win',  map:'Bind',    acs:218},
+  {id:20260406006,date:'2026-04-06',agent:'Omen',      kills:9, deaths:18,rr:-13,result:'Loss',map:'Pearl',   acs:148},
+  {id:20260406007,date:'2026-04-06',agent:'Omen',      kills:9, deaths:18,rr:-12,result:'Loss',map:'Breeze',  acs:136},
+  // Apr 5
+  {id:20260405001,date:'2026-04-05',agent:'Skye',      kills:10,deaths:9, rr:15,result:'Win',  map:'Lotus',   acs:178},
+  {id:20260405002,date:'2026-04-05',agent:'Phoenix',   kills:12,deaths:13,rr:12,result:'Win',  map:'Split',   acs:174},
+  {id:20260405003,date:'2026-04-05',agent:'Skye',      kills:10,deaths:18,rr:-12,result:'Loss',map:'Haven',   acs:157},
+  {id:20260405004,date:'2026-04-05',agent:'Omen',      kills:9, deaths:14,rr:-15,result:'Loss',map:'Split',   acs:202},
+  {id:20260405005,date:'2026-04-05',agent:'Omen',      kills:13,deaths:17,rr:-12,result:'Loss',map:'Pearl',   acs:179},
+  {id:20260405006,date:'2026-04-05',agent:'Omen',      kills:12,deaths:16,rr:-12,result:'Loss',map:'Pearl',   acs:177},
+  // Apr 4
+  {id:20260404001,date:'2026-04-04',agent:'Phoenix',   kills:8, deaths:24,rr:-15,result:'Loss',map:'Bind',    acs:113},
+  {id:20260404002,date:'2026-04-04',agent:'Skye',      kills:28,deaths:33,rr:-10,result:'Loss',map:'Split',   acs:198},
+  {id:20260404003,date:'2026-04-04',agent:'Omen',      kills:13,deaths:18,rr:-12,result:'Loss',map:'Breeze',  acs:192},
+  {id:20260404004,date:'2026-04-04',agent:'Omen',      kills:11,deaths:17,rr:-12,result:'Loss',map:'Haven',   acs:154},
+  {id:20260404005,date:'2026-04-04',agent:'Phoenix',   kills:18,deaths:17,rr:15,result:'Win',  map:'Haven',   acs:253},
+  {id:20260404006,date:'2026-04-04',agent:'Omen',      kills:15,deaths:11,rr:18,result:'Win',  map:'Pearl',   acs:241},
+  // Apr 3
+  {id:20260403001,date:'2026-04-03',agent:'Omen',      kills:16,deaths:13,rr:15,result:'Win',  map:'Breeze',  acs:231},
+  {id:20260403002,date:'2026-04-03',agent:'Omen',      kills:9, deaths:18,rr:-13,result:'Loss',map:'Bind',    acs:155},
+  {id:20260403003,date:'2026-04-03',agent:'Omen',      kills:15,deaths:12,rr:15,result:'Win',  map:'Breeze',  acs:262},
+  {id:20260403004,date:'2026-04-03',agent:'Phoenix',   kills:17,deaths:16,rr:-12,result:'Loss',map:'Bind',    acs:312},
+  {id:20260403005,date:'2026-04-03',agent:'Skye',      kills:26,deaths:20,rr:12,result:'Win',  map:'Haven',   acs:283},
+  {id:20260403006,date:'2026-04-03',agent:'Phoenix',   kills:24,deaths:11,rr:20,result:'Win',  map:'Lotus',   acs:390},
+  {id:20260403007,date:'2026-04-03',agent:'Skye',      kills:12,deaths:17,rr:-12,result:'Loss',map:'Fracture',acs:169},
+  // Apr 2
+  {id:20260402001,date:'2026-04-02',agent:'Skye',      kills:12,deaths:19,rr:-13,result:'Loss',map:'Split',   acs:145},
+  {id:20260402002,date:'2026-04-02',agent:'Omen',      kills:10,deaths:18,rr:-12,result:'Loss',map:'Bind',    acs:192},
+  {id:20260402003,date:'2026-04-02',agent:'Omen',      kills:8, deaths:14,rr:-12,result:'Loss',map:'Breeze',  acs:150},
+  {id:20260402004,date:'2026-04-02',agent:'Skye',      kills:7, deaths:19,rr:-15,result:'Loss',map:'Pearl',   acs:116},
+  {id:20260402005,date:'2026-04-02',agent:'Skye',      kills:15,deaths:9, rr:18,result:'Win',  map:'Pearl',   acs:221},
+  {id:20260402006,date:'2026-04-02',agent:'Phoenix',   kills:15,deaths:10,rr:15,result:'Win',  map:'Fracture',acs:209},
+  {id:20260402007,date:'2026-04-02',agent:'Skye',      kills:15,deaths:22,rr:-12,result:'Loss',map:'Haven',   acs:145},
+  {id:20260402008,date:'2026-04-02',agent:'Skye',      kills:1, deaths:6, rr:-20,result:'Loss',map:'Breeze',  acs:69},
+  {id:20260402009,date:'2026-04-02',agent:'Phoenix',   kills:19,deaths:18,rr:12,result:'Win',  map:'Haven',   acs:250},
+  {id:20260402010,date:'2026-04-02',agent:'Phoenix',   kills:11,deaths:21,rr:-12,result:'Loss',map:'Lotus',   acs:177},
+  // Apr 1
+  {id:20260401001,date:'2026-04-01',agent:'Phoenix',   kills:30,deaths:20,rr:20,result:'Win',  map:'Lotus',   acs:335},
+  {id:20260401002,date:'2026-04-01',agent:'Skye',      kills:19,deaths:15,rr:15,result:'Win',  map:'Breeze',  acs:244},
+  {id:20260401003,date:'2026-04-01',agent:'Skye',      kills:6, deaths:14,rr:-15,result:'Loss',map:'Breeze',  acs:109},
+  {id:20260401004,date:'2026-04-01',agent:'Phoenix',   kills:23,deaths:17,rr:15,result:'Win',  map:'Haven',   acs:306},
+  {id:20260401005,date:'2026-04-01',agent:'Skye',      kills:18,deaths:26,rr:-12,result:'Loss',map:'Split',   acs:143},
+  {id:20260401006,date:'2026-04-01',agent:'Skye',      kills:17,deaths:18,rr:-12,result:'Loss',map:'Split',   acs:270},
+  {id:20260401007,date:'2026-04-01',agent:'Phoenix',   kills:26,deaths:22,rr:12,result:'Win',  map:'Pearl',   acs:273},
+  // Mar 31
+  {id:20260331001,date:'2026-03-31',agent:'Phoenix',   kills:24,deaths:18,rr:15,result:'Win',  map:'Pearl',   acs:360},
+  {id:20260331002,date:'2026-03-31',agent:'Skye',      kills:12,deaths:15,rr:-12,result:'Loss',map:'Breeze',  acs:219},
+  {id:20260331003,date:'2026-03-31',agent:'Skye',      kills:16,deaths:19,rr:-12,result:'Win',  map:'Lotus',  acs:203},
+  {id:20260331004,date:'2026-03-31',agent:'Omen',      kills:9, deaths:14,rr:-13,result:'Loss',map:'Split',   acs:194},
+  {id:20260331005,date:'2026-03-31',agent:'Skye',      kills:10,deaths:21,rr:-15,result:'Loss',map:'Haven',   acs:159},
+  {id:20260331006,date:'2026-03-31',agent:'Phoenix',   kills:15,deaths:19,rr:-12,result:'Loss',map:'Pearl',   acs:244},
+  {id:20260331007,date:'2026-03-31',agent:'Omen',      kills:7, deaths:15,rr:-13,result:'Loss',map:'Split',   acs:143},
+  {id:20260331008,date:'2026-03-31',agent:'Phoenix',   kills:21,deaths:5, rr:22,result:'Win',  map:'Pearl',   acs:368},
+  {id:20260331009,date:'2026-03-31',agent:'Skye',      kills:6, deaths:19,rr:-18,result:'Loss',map:'Lotus',   acs:122},
+  {id:20260331010,date:'2026-03-31',agent:'Omen',      kills:11,deaths:13,rr:-12,result:'Loss',map:'Fracture',acs:207},
+  {id:20260331011,date:'2026-03-31',agent:'Omen',      kills:11,deaths:19,rr:-12,result:'Loss',map:'Fracture',acs:150},
+  // Mar 30
+  {id:20260330001,date:'2026-03-30',agent:'Phoenix',   kills:13,deaths:16,rr:12,result:'Win',  map:'Lotus',   acs:194},
+  // Mar 29
+  {id:20260329001,date:'2026-03-29',agent:'Skye',      kills:7, deaths:14,rr:-13,result:'Loss',map:'Split',   acs:124},
+  {id:20260329002,date:'2026-03-29',agent:'Omen',      kills:7, deaths:18,rr:-13,result:'Loss',map:'Haven',   acs:111},
+  {id:20260329003,date:'2026-03-29',agent:'Omen',      kills:10,deaths:16,rr:-12,result:'Loss',map:'Fracture',acs:146},
+  {id:20260329004,date:'2026-03-29',agent:'Skye',      kills:20,deaths:16,rr:15,result:'Win',  map:'Lotus',   acs:260},
+  // Mar 28
+  {id:20260328001,date:'2026-03-28',agent:'Omen',      kills:10,deaths:20,rr:-13,result:'Loss',map:'Breeze',  acs:153},
+  {id:20260328002,date:'2026-03-28',agent:'Phoenix',   kills:16,deaths:11,rr:18,result:'Win',  map:'Lotus',   acs:238},
+  {id:20260328003,date:'2026-03-28',agent:'Omen',      kills:12,deaths:19,rr:-12,result:'Loss',map:'Haven',   acs:173},
+  {id:20260328004,date:'2026-03-28',agent:'Skye',      kills:14,deaths:15,rr:10,result:'Win',  map:'Breeze',  acs:170},
+  {id:20260328005,date:'2026-03-28',agent:'Phoenix',   kills:3, deaths:22,rr:-20,result:'Loss',map:'Pearl',   acs:70},
+  {id:20260328006,date:'2026-03-28',agent:'Phoenix',   kills:19,deaths:23,rr:-12,result:'Win', map:'Lotus',   acs:230},
+  {id:20260328007,date:'2026-03-28',agent:'Omen',      kills:17,deaths:21,rr:-12,result:'Loss',map:'Split',   acs:203},
+  {id:20260328008,date:'2026-03-28',agent:'Omen',      kills:21,deaths:13,rr:18,result:'Win',  map:'Bind',    acs:269},
+  {id:20260328009,date:'2026-03-28',agent:'Skye',      kills:17,deaths:21,rr:-12,result:'Loss',map:'Haven',   acs:210},
+  {id:20260328010,date:'2026-03-28',agent:'Omen',      kills:17,deaths:11,rr:15,result:'Win',  map:'Haven',   acs:290},
+  {id:20260328011,date:'2026-03-28',agent:'Omen',      kills:3, deaths:22,rr:-20,result:'Loss',map:'Pearl',   acs:70},
+];
+
+function initValoHistory(){
+  if(!LS.get('valo_init_done')){
+    LS.set('valo_s', VALO_HISTORY_BASE);
+    LS.set('valo_init_done', true);
+  }
+}
+
+function addValoSession() {
+  const d=document.getElementById('v-date').value;
+  const a=document.getElementById('v-agent').value;
+  const k=parseInt(document.getElementById('v-kills').value)||0;
+  const dt=parseInt(document.getElementById('v-deaths').value)||1;
+  const rr=parseInt(document.getElementById('v-rr').value)||0;
+  if(!d){alert('Ajoute une date !');return;}
+  const s=getValo(); s.unshift({id:Date.now(),date:d,agent:a,kills:k,deaths:dt,rr:rr,result:rr>=0?'Win':'Loss',acs:0,map:'–'});
+  saveValo(s);
+  document.getElementById('v-kills').value='';document.getElementById('v-deaths').value='';document.getElementById('v-rr').value='';
+  renderValo();
+}
+function deleteValo(id){ saveValo(getValo().filter(s=>s.id!==id)); renderValo(); }
+
+function renderValo() {
+  const s=getValo();
+  const wins=s.filter(x=>x.result==='Win').length;
+  const tk=s.reduce((a,x)=>a+x.kills,0);
+  const td=s.reduce((a,x)=>a+x.deaths,0);
+  const trr=s.reduce((a,x)=>a+(x.rr||0),0);
+  const rrEl=document.getElementById('v-rrnet');
+  rrEl.textContent=(trr>=0?'+':'')+trr; rrEl.style.color=trr>=0?'#00d464':'#ff4655';
+  // RR bar (Bronze 2 base ~50 RR + delta sessions)
+  const baseRR=50+trr; const clampRR=Math.max(0,Math.min(100,((baseRR%100)+100)%100));
+  document.getElementById('v-rrbar').style.width=clampRR+'%';
+  document.getElementById('v-rrdisplay').textContent=clampRR+' RR';
+  // Table — 30 dernières
+  const tb=document.getElementById('v-tbody');
+  const display=s.slice(0,30);
+  tb.innerHTML=display.length?display.map(x=>`<tr>
+    <td class="muted">${x.date}</td>
+    <td>${x.agent}</td>
+    <td>${x.map||'–'}</td>
+    <td style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#ff4655">${x.kills}</td>
+    <td style="opacity:.5">${x.deaths}</td>
+    <td>${(x.deaths?(x.kills/x.deaths).toFixed(2):'∞')}</td>
+    <td style="font-family:'Bebas Neue',sans-serif;color:${(x.rr||0)>=0?'#00d464':'#ff4655'}">${(x.rr||0)>=0?'+':''}${x.rr||0}</td>
+    <td><span class="badge ${x.result==='Win'?'badge-win':'badge-loss'}">${x.result}</span></td>
+    <td><button class="del-btn" onclick="deleteValo(${x.id})">✕</button></td>
+  </tr>`).join(''):'<tr><td colspan="9" class="empty-state">Aucune session</td></tr>';
+  // Chart RR cumulatif
+  let cum=50; const pts=[...s].reverse().map(x=>{cum+=(x.rr||0);return cum;});
+  const clrs=[...s].reverse().map(x=>(x.rr||0)>=0?'#00d464':'#ff4655');
+  drawLineChart(document.getElementById('v-chart'), pts.slice(-40), clrs.slice(-40), '#ff4655');
+}
+
+/* ============================
+   DARTS
+   ============================ */
+function getDarts(){ return LS.get('darts_s') || []; }
+function saveDarts(s){ LS.set('darts_s',s); }
+
+let dLive=301, dHist=[];
+function dHit(v){
+  if(dLive<=0)return;
+  const next=dLive-v;
+  if(next<0){showDartStatus('BUST ! Score trop haut',true);return;}
+  dHist.push(dLive); dLive=next; updateDartLive();
+}
+function dCustom(){ const v=parseInt(document.getElementById('d-custom').value)||0; document.getElementById('d-custom').value=''; dHit(v); }
+function dUndo(){ if(dHist.length){dLive=dHist.pop();updateDartLive();} }
+function dReset(){ dLive=301; dHist=[]; updateDartLive(); }
+function updateDartLive(){
+  const el=document.getElementById('d-live');
+  el.textContent=dLive;
+  el.className='live-num'+(dLive===0?' done':'');
+  showDartStatus(dLive===0?'💥 FINI !':'EN JEU');
+}
+function showDartStatus(msg,temp){
+  const s=document.getElementById('d-live-status'); s.textContent=msg;
+  if(temp)setTimeout(()=>{if(dLive>0)s.textContent='EN JEU';},1500);
+}
+function dSaveWin(){
+  const darts=prompt('Combien de fléchettes pour ce leg ?');
+  const sessions=getDarts();
+  sessions.unshift({id:Date.now(),date:new Date().toISOString().split('T')[0],score:dHist[0]||301,darts:parseInt(darts)||0,result:'Win'});
+  saveDarts(sessions); dReset(); renderDarts();
+}
+
+function addDartsSession(){
+  const d=document.getElementById('d-date').value;
+  const r=document.getElementById('d-result').value;
+  const sc=parseInt(document.getElementById('d-score').value)||0;
+  const dt=parseInt(document.getElementById('d-darts').value)||0;
+  if(!d){alert('Ajoute une date !');return;}
+  const s=getDarts(); s.unshift({id:Date.now(),date:d,score:sc,darts:dt,result:r});
+  saveDarts(s); document.getElementById('d-score').value=''; document.getElementById('d-darts').value='';
+  renderDarts();
+}
+function deleteDarts(id){ saveDarts(getDarts().filter(s=>s.id!==id)); renderDarts(); }
+
+function renderDarts(){
+  const s=getDarts();
+  const base=440;
+  const wins=s.filter(x=>x.result==='Win').length;
+  const scores=s.filter(x=>x.score>0).map(x=>x.score);
+  const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
+  const best=scores.length?Math.max(...scores):0;
+  let streak=0; for(const x of s){if(x.result==='Win')streak++;else break;}
+  document.getElementById('d-total').textContent=(base+s.length)+'+';
+  document.getElementById('d-wr').innerHTML=(s.length?Math.round(wins/s.length*100):0)+'<small style="font-size:.5em;opacity:.5">%</small>';
+  document.getElementById('d-avg').textContent=avg||'–';
+  document.getElementById('d-best').textContent=best||'–';
+  document.getElementById('d-streak').textContent=streak;
+  // Table
+  const tb=document.getElementById('d-tbody');
+  tb.innerHTML=s.length?s.map(x=>`<tr>
+    <td class="muted">${x.date}</td>
+    <td style="font-family:'Bebas Neue',sans-serif;font-size:1.15rem;color:#00d4aa">${x.score||'–'}</td>
+    <td>${x.darts||'–'}</td>
+    <td><span class="badge ${x.result==='Win'?'badge-win':'badge-loss'}">${x.result}</span></td>
+    <td><button class="del-btn" onclick="deleteDarts(${x.id})">✕</button></td>
+  </tr>`).join(''):'<tr><td colspan="5" class="empty-state">Aucune partie enregistrée</td></tr>';
+  // Chart
+  const data=[...s].reverse().filter(x=>x.score>0).slice(-16);
+  const clrs=data.map(x=>x.result==='Win'?'#00ffcc':'#ff4655');
+  drawLineChart(document.getElementById('d-chart'), data.map(x=>x.score), clrs, '#00d4aa');
+}
+
+/* Training checks */
+function toggleCheck(el){ el.querySelector('.check-box').classList.toggle('done'); }
+
+/* Resize charts */
+window.addEventListener('resize', () => {
+  if(currentPage==='apex') renderApex();
+  if(currentPage==='valorant') renderValo();
+  if(currentPage==='darts') renderDarts();
+});
+</script>
+</body>
+</html>
